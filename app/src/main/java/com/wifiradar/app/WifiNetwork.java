@@ -2,76 +2,68 @@ package com.wifiradar.app;
 
 import android.net.wifi.ScanResult;
 
-/**
- * Representa uma rede Wi-Fi detectada com:
- *  - SSID (nome)
- *  - BSSID (MAC do AP) — usado como semente para posicionamento angular estável
- *  - RSSI (dBm)
- *  - distância estimada em metros (modelo log-distance path loss)
- *  - frequência (MHz) — usada para ajustar o cálculo
- *
- * IMPORTANTE: a distância é uma ESTIMATIVA. RSSI é altamente afetado por
- * paredes, multipath, interferência e potência de transmissão real do AP
- * (que assumimos ~ -40 dBm a 1 metro). Erros de ±50% são comuns.
- */
 public class WifiNetwork {
 
     public final String ssid;
     public final String bssid;
-    public final int rssi;          // em dBm (ex.: -55)
-    public final int frequency;     // em MHz
-    public final double distanceM;  // estimativa em metros
-    public final int signalBars;    // 0..4
+    public final int rssi;
+    public final int frequency;
+    public final double distanceM;
+    public final int signalBars;
+    public final int channel;
+    public final String security;
+    public final String band;
 
     private WifiNetwork(String ssid, String bssid, int rssi, int freq,
-                        double distance, int bars) {
-        this.ssid = ssid;
-        this.bssid = bssid;
-        this.rssi = rssi;
-        this.frequency = freq;
-        this.distanceM = distance;
-        this.signalBars = bars;
+                        double dist, int bars, int ch, String sec) {
+        this.ssid = ssid; this.bssid = bssid; this.rssi = rssi;
+        this.frequency = freq; this.distanceM = dist; this.signalBars = bars;
+        this.channel = ch; this.security = sec;
+        this.band = freq >= 5000 ? "5G" : "2.4G";
     }
 
     public static WifiNetwork from(ScanResult r) {
         String name = (r.SSID == null || r.SSID.isEmpty()) ? "<oculta>" : r.SSID;
         String mac  = r.BSSID == null ? "00:00:00:00:00:00" : r.BSSID;
-        double dist = estimateDistanceMeters(r.level, r.frequency);
-        int bars = signalBarsFromRssi(r.level);
-        return new WifiNetwork(name, mac, r.level, r.frequency, dist, bars);
+        return new WifiNetwork(name, mac, r.level, r.frequency,
+                estimateDistanceMeters(r.level, r.frequency),
+                signalBarsFromRssi(r.level),
+                channelFromFreq(r.frequency),
+                parseSecurityFromCaps(r.capabilities));
     }
 
-    /**
-     * Modelo Free Space Path Loss (FSPL):
-     *   distância(m) = 10 ^ ((27.55 - 20*log10(freqMHz) - rssi) / 20)
-     *
-     * Boa aproximação em ambiente aberto. Em ambientes fechados a distância
-     * real costuma ser MENOR (paredes atenuam o sinal, fazendo o RSSI parecer
-     * "mais longe" do que realmente está).
-     */
     public static double estimateDistanceMeters(int rssi, int freqMHz) {
-        if (freqMHz <= 0) freqMHz = 2412; // fallback canal 1 / 2.4 GHz
+        if (freqMHz <= 0) freqMHz = 2412;
         double exp = (27.55 - (20.0 * Math.log10(freqMHz)) + Math.abs(rssi)) / 20.0;
         double d = Math.pow(10.0, exp);
-        // sanidade: limita entre 0.3m e 200m
-        if (d < 0.3) d = 0.3;
-        if (d > 200) d = 200;
-        return d;
+        return Math.max(0.3, Math.min(200, d));
     }
 
     public static int signalBarsFromRssi(int rssi) {
-        if (rssi >= -50) return 4; // excelente
-        if (rssi >= -60) return 3; // bom
-        if (rssi >= -70) return 2; // ok
-        if (rssi >= -80) return 1; // fraco
-        return 0;                  // péssimo
+        if (rssi >= -50) return 4;
+        if (rssi >= -60) return 3;
+        if (rssi >= -70) return 2;
+        if (rssi >= -80) return 1;
+        return 0;
     }
 
-    /**
-     * Gera um ângulo determinístico (0..2π) a partir do BSSID, para que cada
-     * rede sempre apareça no MESMO ponto do radar entre scans (não fica
-     * pulando aleatoriamente). NÃO representa direção real do sinal.
-     */
+    public static int channelFromFreq(int freq) {
+        if (freq == 2484) return 14;
+        if (freq >= 2412 && freq <= 2472) return (freq - 2407) / 5;
+        if (freq >= 5160 && freq <= 5885) return (freq - 5000) / 5;
+        if (freq >= 5955) return (freq - 5955) / 5 + 1;
+        return 0;
+    }
+
+    public static String parseSecurityFromCaps(String caps) {
+        if (caps == null || caps.isEmpty()) return "Open";
+        if (caps.contains("SAE"))  return "WPA3";
+        if (caps.contains("WPA2")) return "WPA2";
+        if (caps.contains("WPA"))  return "WPA";
+        if (caps.contains("WEP"))  return "WEP";
+        return "Open";
+    }
+
     public double bearingRadians() {
         int hash = bssid.hashCode();
         return ((hash & 0xFFFF) / 65535.0) * 2.0 * Math.PI;
