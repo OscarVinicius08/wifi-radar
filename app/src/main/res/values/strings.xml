@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WiFi Radar</string>
+    <string name="scanning">escaneando…</string>
+    <string name="scan_done">scan ok</string>
+    <string name="scan_cached">cache (aguarde)</string>
+    <string name="wifi_off">ligue o Wi-Fi</string>
+    <string name="err_permissions">permissões negadas</string>
+    <string name="count_default">— redes</string>
+    <string name="count_fmt">%1$d redes</string>
+</resources>

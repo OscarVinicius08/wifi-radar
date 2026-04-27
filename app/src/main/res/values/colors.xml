@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#000000</color>
+    <color name="radar_green">#00FF88</color>
+    <color name="dim_green">#5500FF88</color>
+</resources>
