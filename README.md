@@ -82,25 +82,26 @@ Sem Android Studio — use o **GitHub Actions** incluso:
 
 ## 📁 Estrutura do projeto
 
-WifiRadar/
-├── app/src/main/java/com/wifiradar/app/
-│   ├── MainActivity.java       — orquestra scan, permissões e abas
-│   ├── WatchPagerAdapter.java  — 9 abas com swipe
-│   ├── WifiNetwork.java        — modelo de rede + cálculos
-│   ├── ThreatDetector.java     — Evil Twin, ARP Spoof, DNS, Honeypot
-│   ├── NetworkScanner.java     — scanner de dispositivos e portas
-│   ├── OuiDatabase.java        — lookup offline de fabricante por MAC
-│   ├── RadarView/Fragment      — aba 1: radar circular
-│   ├── ListFragment            — aba 2: lista de redes
-│   ├── MeterView/Fragment      — aba 3: gauge analógico
-│   ├── ChannelView/Fragment    — aba 4: spectrum analyzer
-│   ├── ThreatsFragment         — aba 5: ameaças ativas
-│   ├── DevicesFragment         — aba 6: dispositivos na rede
-│   ├── AuditFragment           — aba 7: auditoria de segurança
-│   ├── ToolsFragment           — aba 8: ferramentas de rede
-│   └── ReportFragment          — aba 9: relatório e timeline
-└── .github/workflows/build.yml — CI/CD automático
 
+    WifiRadar/
+    ├── app/src/main/java/com/wifiradar/app/
+    │   ├── MainActivity.java       — orquestra scan, permissões e abas
+    │   ├── WatchPagerAdapter.java  — 9 abas com swipe
+    │   ├── WifiNetwork.java        — modelo de rede + cálculos
+    │   ├── ThreatDetector.java     — Evil Twin, ARP Spoof, DNS, Honeypot
+    │   ├── NetworkScanner.java     — scanner de dispositivos e portas
+    │   ├── OuiDatabase.java        — lookup offline de fabricante por MAC
+    │   ├── RadarView/Fragment      — aba 1: radar circular
+    │   ├── ListFragment            — aba 2: lista de redes
+    │   ├── MeterView/Fragment      — aba 3: gauge analógico
+    │   ├── ChannelView/Fragment    — aba 4: spectrum analyzer
+    │   ├── ThreatsFragment         — aba 5: ameaças ativas
+    │   ├── DevicesFragment         — aba 6: dispositivos na rede
+    │   ├── AuditFragment           — aba 7: auditoria de segurança
+    │   ├── ToolsFragment           — aba 8: ferramentas de rede
+    │   └── ReportFragment          — aba 9: relatório e timeline
+    └── .github/workflows/build.yml — CI/CD automático
+```
 ---
 
 *WiFi Radar V3 — reconhecimento passivo profissional no pulso*
