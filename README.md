@@ -1,154 +1,108 @@
-# WiFi Radar — para Microwear Ultra AI 3
+# 📡 WiFi Radar V3 — Microwear Ultra AI 3
 
-App Android que escaneia redes Wi-Fi próximas e mostra cada uma como
-um ponto num radar circular, em distância proporcional à força do sinal.
-Pensado para a tela AMOLED de ~2.06" (466x466 px) do Microwear Ultra AI 3.
-
----
-
-## ⚠️ O que esse app FAZ e o que NÃO FAZ — leia antes
-
-### Faz
-- Lista todas as redes Wi-Fi visíveis (SSID, BSSID, RSSI, canal).
-- **Estima a distância** de cada AP em metros usando o modelo Free Space
-  Path Loss (FSPL).
-- Plota cada rede num radar de 4 anéis (5m, 15m, 30m, 60m).
-- Cor do ponto = força do sinal (verde forte → vermelho fraco).
-- Atualiza a cada ~30 s ou ao toque na tela.
-
-### NÃO faz (limitação física, não preguiça)
-- **Não mostra a direção real de onde vem o sinal.** Determinar azimute
-  de um sinal Wi-Fi exige um array de antenas direcionais — o smartwatch
-  tem uma única antena omnidirecional. O ângulo no radar é derivado de
-  forma estável do BSSID (cada rede sempre aparece no mesmo lugar entre
-  scans), mas é puramente visual.
-- **Não localiza o roteador num mapa.** Para isso seria necessário
-  consultar uma base externa tipo WiGLE com o BSSID — fica como evolução
-  futura (item "ideias" abaixo).
-- A distância em metros é uma **estimativa** com erro típico de ±50% em
-  ambientes fechados (paredes, multipath, potência real desconhecida do AP).
+Ferramenta de reconhecimento e auditoria Wi-Fi para smartwatch Android.
+Desenvolvida para a tela AMOLED de 2.06" do Microwear Ultra AI 3.
 
 ---
 
-## Como compilar
+## 🧭 Navegação — 9 abas (deslize para os lados)
 
-### 🚀 Opção mais fácil — sem instalar NADA no PC
-Veja o arquivo **`COMO_GERAR_APK_SEM_PC.md`** — usa GitHub Actions e
-gera o APK na nuvem em ~3 minutos. Recomendado se você não quer baixar
-o Android Studio (5 GB).
-
-### Opção A — Android Studio (recomendado se você for programar)
-
-1. Abra o Android Studio (qualquer versão recente — Hedgehog, Iguana, Koala).
-2. **File → Open** e selecione a pasta `WifiRadar`.
-3. Aguarde o Gradle sync. Se pedir para atualizar o Gradle plugin, aceite.
-4. Clique em **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
-5. Quando aparecer "APK(s) generated successfully", clique em **locate** —
-   o APK estará em `app/build/outputs/apk/debug/app-debug.apk`.
-
-### Opção B — Linha de comando
-
-```bash
-cd WifiRadar
-# Se você não tem o gradle wrapper, gere com:
-gradle wrapper
-# Depois:
-./gradlew assembleDebug
-```
-
-APK final: `app/build/outputs/apk/debug/app-debug.apk`
-
-> **Nota:** este zip não inclui `gradlew` e `gradle-wrapper.jar` para
-> ficar leve. Da primeira vez que abrir no Android Studio ele baixa
-> tudo automaticamente. Em CLI use o comando `gradle wrapper` acima
-> (precisa ter Gradle 8+ instalado).
+| # | Aba | Função |
+|---|-----|--------|
+| 1 | 📡 **Radar** | Radar circular animado — redes como pontos por distância estimada |
+| 2 | 📋 **Lista** | Tabela completa: SSID, canal, banda, dBm, segurança, distância |
+| 3 | 🎯 **Medidor** | Gauge analógico da rede mais forte com ponteiro e zonas de cor |
+| 4 | 📊 **Canais** | Spectrum analyzer — curvas por canal, alterna 2.4GHz / 5GHz |
+| 5 | 🛡 **Ameaças** | Evil Twin · ARP Spoofing · DNS suspeito · Honeypot · SSID oculto |
+| 6 | 📱 **Dispositivos** | Scanner da rede local + port scan por dispositivo |
+| 7 | 🔐 **Auditoria** | Score 0-100 · WPS · Fabricante (OUI) · Risco por rede |
+| 8 | 🛠 **Ferramentas** | Ping · Traceroute · Port Scan · DNS Lookup |
+| 9 | 📋 **Relatório** | Timeline de eventos · Estatísticas · Exportar TXT |
 
 ---
 
-## Como instalar no Microwear Ultra AI 3
+## 🔍 Detecções de Segurança
 
-Esses smartwatches Android rodam um sistema **Android padrão** (não Wear OS),
-então é instalação igual a celular:
-
-1. **Habilite "Fontes desconhecidas"** nas configurações do relógio
-   (Settings → Security → Unknown sources, ou similar — varia por lote).
-2. **Transferência do APK** — três caminhos comuns:
-   - **Cabo USB:** conecte o relógio ao PC, copie o `app-debug.apk` para
-     o armazenamento interno, e use um file manager no relógio para
-     instalar.
-   - **Bluetooth:** envie o APK do celular para o relógio.
-   - **ADB sem fio:** se o relógio expõe ADB pela rede (alguns lotes
-     fazem por padrão na porta 5555), use:
-     ```
-     adb connect <IP_DO_RELOGIO>:5555
-     adb install app-debug.apk
-     ```
-   - **Download direto:** abra um navegador no relógio e baixe o APK
-     de um link próprio.
-3. Toque no APK para instalar e aceite os avisos de "instalação de
-   app desconhecido".
-4. Ao abrir, conceda **Permissões de Localização** (sem isso o
-   Android 8.1+ NÃO retorna a lista de redes Wi-Fi, mesmo que você só
-   queira escanear).
+- **Evil Twin** — detecta dois APs com mesmo SSID em canais diferentes (possível AP falso)
+- **ARP Spoofing** — monitora mudança de MAC do gateway (ataque man-in-the-middle)
+- **DNS suspeito** — alerta se o DNS configurado não é privado nem público conhecido
+- **Honeypot** — detecta rede aberta com mesmo SSID de rede protegida
+- **SSID oculto** — conta redes sem nome visível
+- **WPS ativo** — flag em redes com WPS habilitado (vulnerabilidade conhecida)
+- **Score de risco** — nota 0 a 100 para o ambiente Wi-Fi ao redor
 
 ---
 
-## Como usar
+## 🛠 Ferramentas de Rede
 
-- A tela é o radar inteiro, fundo preto (economia de bateria AMOLED).
-- **Toque em qualquer parte** = força um novo scan.
-- Texto verde no topo = status do scan.
-- Texto cinza embaixo = quantidade de redes detectadas.
-- Cada ponto colorido = uma rede.
-  - 🟢 verde claro: sinal excelente (≥ -50 dBm, ~5m)
-  - 🟡 amarelo:    sinal médio   (-60 a -70 dBm, ~15-30m)
-  - 🟠 laranja:    sinal fraco   (-70 a -80 dBm, ~30-60m)
-  - 🔴 vermelho:   sinal péssimo (≤ -80 dBm, > 60m)
+- **Ping** — 5 sequências com latência em ms e código de cor
+- **Traceroute** — caminho dos pacotes até o destino
+- **Port Scan** — verifica portas comuns (FTP, SSH, Telnet, HTTP, HTTPS, SMB, RDP...)
+- **DNS Lookup** — resolve nomes para IPs
+- **Device Scanner** — varre todos os 254 hosts da sub-rede local
+- **Port Scan por dispositivo** — testa portas em qualquer host encontrado
 
 ---
 
-## Throttling do scan no Android 9
+## ⚙️ Comportamento
 
-A partir do Android 9, `WifiManager.startScan()` é limitado a
-**~4 chamadas a cada 2 minutos** por app. O app respeita isso —
-quando o sistema bloqueia um novo scan, ele exibe "cache (aguarde)"
-e mostra o último resultado conhecido. Não é bug.
-
----
-
-## Ideias para evoluir
-
-Se você quiser expandir, esses são caminhos viáveis:
-- **Triangulação manual:** caminhar 3 pontos diferentes anotando RSSI
-  em cada → calcular interseção. Daria localização ~real do AP.
-- **WiGLE API:** consultar `https://api.wigle.net` com o BSSID retorna
-  lat/long se a rede já tiver sido mapeada por outro usuário.
-- **Histórico de RSSI:** gravar últimos 60s e mostrar tendência
-  (você está se aproximando ou afastando do AP).
-- **Filtro por SSID:** modo "encontrar minha rede" que destaca apenas
-  um SSID alvo no radar.
+- **Auto-scan**: atualiza a cada ~17s automaticamente (limite do Android 9)
+- **Toque na tela**: força scan imediato no Radar
+- **Timeline**: log cronológico de todos os eventos e ameaças detectadas
+- **Exportar relatório**: gera TXT completo compartilhável por WhatsApp/e-mail
 
 ---
 
-## Estrutura
+## ⚠️ Limitações honestas
 
-```
+- **Distância estimada** tem erro de ±50% em ambientes fechados (paredes atenuam o sinal)
+- **Ângulo no radar** é derivado do BSSID — estável entre scans, mas não é direção real
+- **Deauth/injeção de pacotes** é impossível sem modo monitor no driver Wi-Fi (bloqueado no Android)
+- **Device Scanner** pode ser lento (~30s) dependendo do tamanho da rede
+
+---
+
+## 📲 Instalação
+
+1. Baixe o APK na aba **Actions → Build APK → Artifacts**
+2. No relógio: **Configurações → Segurança → Fontes desconhecidas → Ativar**
+3. Transfira o APK (USB, Bluetooth ou ADB)
+4. Instale e conceda permissão de **Localização** ao abrir
+
+---
+
+## 🏗 Compilar você mesmo
+
+Sem Android Studio — use o **GitHub Actions** incluso:
+1. Faça fork ou upload para seu repositório
+2. A aba **Actions** compila automaticamente a cada push
+3. Baixe o APK em **Actions → execução mais recente → Artifacts → WifiRadar-APK**
+
+---
+
+## 📁 Estrutura do projeto
+
 WifiRadar/
-├── app/
-│   ├── build.gradle
-│   ├── proguard-rules.pro
-│   └── src/main/
-│       ├── AndroidManifest.xml
-│       ├── java/com/wifiradar/app/
-│       │   ├── MainActivity.java   ← orquestra permissões e scan
-│       │   ├── RadarView.java      ← desenha o radar circular animado
-│       │   └── WifiNetwork.java    ← modelo + cálculo de distância
-│       └── res/
-│           ├── layout/activity_main.xml
-│           ├── values/{strings,styles,colors}.xml
-│           ├── drawable/ic_launcher_foreground.xml
-│           └── mipmap-*/ic_launcher.png
-├── build.gradle
-├── settings.gradle
-└── gradle.properties
-```
+├── app/src/main/java/com/wifiradar/app/
+│   ├── MainActivity.java       — orquestra scan, permissões e abas
+│   ├── WatchPagerAdapter.java  — 9 abas com swipe
+│   ├── WifiNetwork.java        — modelo de rede + cálculos
+│   ├── ThreatDetector.java     — Evil Twin, ARP Spoof, DNS, Honeypot
+│   ├── NetworkScanner.java     — scanner de dispositivos e portas
+│   ├── OuiDatabase.java        — lookup offline de fabricante por MAC
+│   ├── RadarView/Fragment      — aba 1: radar circular
+│   ├── ListFragment            — aba 2: lista de redes
+│   ├── MeterView/Fragment      — aba 3: gauge analógico
+│   ├── ChannelView/Fragment    — aba 4: spectrum analyzer
+│   ├── ThreatsFragment         — aba 5: ameaças ativas
+│   ├── DevicesFragment         — aba 6: dispositivos na rede
+│   ├── AuditFragment           — aba 7: auditoria de segurança
+│   ├── ToolsFragment           — aba 8: ferramentas de rede
+│   └── ReportFragment          — aba 9: relatório e timeline
+└── .github/workflows/build.yml — CI/CD automático
+
+---
+
+*WiFi Radar V3 — reconhecimento passivo profissional no pulso*
+
+Feito com ajuda do Claude code PRO.
