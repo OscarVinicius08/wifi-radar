@@ -27,24 +27,23 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQ_PERMISSIONS = 101;
-    private static final long SCAN_INTERVAL_MS = 30_000L;
+    // Android 9 limita ~4 scans/2min por app. 17s é o mínimo seguro.
+    private static final long SCAN_INTERVAL_MS = 17_000L;
 
-    /** Dados compartilhados com os fragments (acesso na main thread). */
     public static final List<WifiNetwork> sharedNetworks = new ArrayList<>();
-    /** Fragments registram aqui para receber notificação de novos dados. */
     public static final List<Runnable> dataListeners = new ArrayList<>();
+    public static final List<String> eventLog = new ArrayList<>(); // timeline global
 
     private WifiManager wifiManager;
     private ViewPager2 viewPager;
     private LinearLayout dotsContainer;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean receiverRegistered = false;
+    private long lastScanTime = 0;
 
     private final BroadcastReceiver scanReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context c, Intent intent) {
-            processScanResults(intent.getBooleanExtra(
-                    WifiManager.EXTRA_RESULTS_UPDATED, false));
+        @Override public void onReceive(Context c, Intent i) {
+            processScanResults(i.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false));
         }
     };
 
@@ -56,63 +55,53 @@ public class MainActivity extends AppCompatActivity {
     };
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    protected void onCreate(Bundle s) {
+        super.onCreate(s);
         setContentView(R.layout.activity_main);
-
-        wifiManager = (WifiManager) getApplicationContext()
-                .getSystemService(Context.WIFI_SERVICE);
-
-        viewPager     = findViewById(R.id.view_pager);
+        wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        viewPager = findViewById(R.id.view_pager);
         dotsContainer = findViewById(R.id.dots_container);
-
         viewPager.setAdapter(new WatchPagerAdapter(this));
-        viewPager.setOffscreenPageLimit(4);
-
-        buildDots();
+        viewPager.setOffscreenPageLimit(9);
+        buildDots(9);
         viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
-            @Override public void onPageSelected(int pos) { updateDots(pos); }
+            @Override public void onPageSelected(int p) { updateDots(p); }
         });
-
         ensurePermissions();
     }
 
-    private void buildDots() {
+    private void buildDots(int n) {
         dotsContainer.removeAllViews();
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < n; i++) {
             TextView dot = new TextView(this);
             dot.setText("●");
-            dot.setTextSize(8);
+            dot.setTextSize(6);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            lp.setMargins(6, 0, 6, 0);
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(4, 0, 4, 0);
             dot.setLayoutParams(lp);
             dotsContainer.addView(dot);
         }
         updateDots(0);
     }
 
-    private void updateDots(int selected) {
-        for (int i = 0; i < dotsContainer.getChildCount(); i++) {
+    private void updateDots(int sel) {
+        for (int i = 0; i < dotsContainer.getChildCount(); i++)
             ((TextView) dotsContainer.getChildAt(i))
-                    .setTextColor(i == selected ? 0xFF00FF88 : 0x55FFFFFF);
-        }
+                .setTextColor(i == sel ? 0xFF00FF88 : 0x44FFFFFF);
     }
 
-    @Override
-    protected void onResume() {
+    @Override protected void onResume() {
         super.onResume();
         if (!receiverRegistered) {
-            registerReceiver(scanReceiver,
-                    new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+            registerReceiver(scanReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
             receiverRegistered = true;
         }
         handler.post(scanRunnable);
     }
 
-    @Override
-    protected void onPause() {
+    @Override protected void onPause() {
         super.onPause();
         handler.removeCallbacks(scanRunnable);
         if (receiverRegistered) {
@@ -123,36 +112,43 @@ public class MainActivity extends AppCompatActivity {
 
     private void ensurePermissions() {
         String[] needed = {
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-                Manifest.permission.ACCESS_WIFI_STATE,
-                Manifest.permission.CHANGE_WIFI_STATE
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_WIFI_STATE,
+            Manifest.permission.CHANGE_WIFI_STATE,
+            Manifest.permission.INTERNET
         };
         List<String> missing = new ArrayList<>();
         for (String p : needed)
-            if (ContextCompat.checkSelfPermission(this, p)
-                    != PackageManager.PERMISSION_GRANTED) missing.add(p);
+            if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED)
+                missing.add(p);
         if (!missing.isEmpty())
-            ActivityCompat.requestPermissions(
-                    this, missing.toArray(new String[0]), REQ_PERMISSIONS);
+            ActivityCompat.requestPermissions(this, missing.toArray(new String[0]), REQ_PERMISSIONS);
         else
             triggerScan();
     }
 
     @Override
-    public void onRequestPermissionsResult(int req,
-            @NonNull String[] perms, @NonNull int[] grants) {
-        super.onRequestPermissionsResult(req, perms, grants);
+    public void onRequestPermissionsResult(int req, @NonNull String[] p, @NonNull int[] g) {
+        super.onRequestPermissionsResult(req, p, g);
         if (req == REQ_PERMISSIONS) {
-            boolean ok = grants.length > 0;
-            for (int g : grants) if (g != PackageManager.PERMISSION_GRANTED) ok = false;
+            boolean ok = g.length > 0;
+            for (int r : g) if (r != PackageManager.PERMISSION_GRANTED) ok = false;
             if (ok) triggerScan();
         }
     }
 
     public void triggerScan() {
         if (wifiManager == null || !wifiManager.isWifiEnabled()) return;
-        try { //noinspection deprecation
+        long now = System.currentTimeMillis();
+        // respeita throttling sem bloquear — usa cache se for muito cedo
+        if (now - lastScanTime < 12_000L) {
+            processScanResults(false);
+            return;
+        }
+        lastScanTime = now;
+        try {
+            //noinspection deprecation
             boolean started = wifiManager.startScan();
             if (!started) processScanResults(false);
         } catch (Exception e) {
@@ -161,20 +157,28 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void processScanResults(boolean fresh) {
-        if (ContextCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) return;
         List<ScanResult> raw;
         try { raw = wifiManager.getScanResults(); }
         catch (SecurityException e) { return; }
         if (raw == null) raw = Collections.emptyList();
-
         Collections.sort(raw, (a, b) -> Integer.compare(b.level, a.level));
 
+        List<WifiNetwork> prev = new ArrayList<>(sharedNetworks);
         sharedNetworks.clear();
         for (ScanResult r : raw) sharedNetworks.add(WifiNetwork.from(r));
 
-        // Notifica todos os fragments registrados
+        // Detecção de ameaças em background
+        ThreatDetector.analyze(prev, sharedNetworks, wifiManager, getApplicationContext());
+
         for (Runnable l : new ArrayList<>(dataListeners)) l.run();
+    }
+
+    public static void addEvent(String msg) {
+        String ts = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+                .format(new java.util.Date());
+        eventLog.add(0, "[" + ts + "] " + msg);
+        if (eventLog.size() > 200) eventLog.remove(eventLog.size() - 1);
     }
 }

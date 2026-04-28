@@ -3,7 +3,6 @@ package com.wifiradar.app;
 import android.net.wifi.ScanResult;
 
 public class WifiNetwork {
-
     public final String ssid;
     public final String bssid;
     public final int rssi;
@@ -13,30 +12,32 @@ public class WifiNetwork {
     public final int channel;
     public final String security;
     public final String band;
+    public final String capabilities; // raw capabilities string
 
     private WifiNetwork(String ssid, String bssid, int rssi, int freq,
-                        double dist, int bars, int ch, String sec) {
+                        double dist, int bars, int ch, String sec, String caps) {
         this.ssid = ssid; this.bssid = bssid; this.rssi = rssi;
         this.frequency = freq; this.distanceM = dist; this.signalBars = bars;
         this.channel = ch; this.security = sec;
         this.band = freq >= 5000 ? "5G" : "2.4G";
+        this.capabilities = caps;
     }
 
     public static WifiNetwork from(ScanResult r) {
         String name = (r.SSID == null || r.SSID.isEmpty()) ? "<oculta>" : r.SSID;
         String mac  = r.BSSID == null ? "00:00:00:00:00:00" : r.BSSID;
+        String caps = r.capabilities != null ? r.capabilities : "";
         return new WifiNetwork(name, mac, r.level, r.frequency,
                 estimateDistanceMeters(r.level, r.frequency),
                 signalBarsFromRssi(r.level),
                 channelFromFreq(r.frequency),
-                parseSecurityFromCaps(r.capabilities));
+                parseSecurityFromCaps(caps), caps);
     }
 
     public static double estimateDistanceMeters(int rssi, int freqMHz) {
         if (freqMHz <= 0) freqMHz = 2412;
         double exp = (27.55 - (20.0 * Math.log10(freqMHz)) + Math.abs(rssi)) / 20.0;
-        double d = Math.pow(10.0, exp);
-        return Math.max(0.3, Math.min(200, d));
+        return Math.max(0.3, Math.min(200, Math.pow(10.0, exp)));
     }
 
     public static int signalBarsFromRssi(int rssi) {
